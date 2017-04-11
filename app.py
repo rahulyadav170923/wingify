@@ -1,5 +1,5 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
-
+import os
 # HTTPRequestHandler class
 class HTTP_RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -18,12 +18,15 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
         return
 
 
-
 def run():
   print('starting server...')
   # Server settings
   # Choose port 8080, for port 80, which is normally used for a http server, you need root access
-  server_address = ('127.0.0.1', 8000)
+  if 'PORT' in os.environ.keys() :
+    port = os.environ['PORT']
+  else:
+    port = 8000
+  server_address = ('0.0.0.0', port )
   httpd = HTTPServer(server_address, HTTP_RequestHandler)
   print('running server...')
   httpd.serve_forever()
