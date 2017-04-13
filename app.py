@@ -3,6 +3,7 @@ import os
 import json,re,urllib,simplejson
 import cgi
 import pdb
+import base64
 
 class LocalData(object):
     products = {
@@ -13,62 +14,100 @@ class LocalData(object):
     'count': '40'
     },
     }
+    users = {
+    'admin': 'cGFzc3dvcmQ='
+    }
+
+status_404 = {
+    'status': '404',
+    'msg':'Resource not found'
+}
+
+
+
 
 
 
 # HTTPRequestHandler class
 class HTTP_RequestHandler(BaseHTTPRequestHandler):
-    def send_ok_response(self):
+
+    # def authenticate(func):
+    #     def authenticate_wrapper(self):
+    #         if self
+
+    def send_200_response(self):
         self.send_response(200)
         self.send_header('Content-type','application/json')
         self.end_headers()
 
+    def send_404_response(self):
+        self.send_response(404)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+
+    def do_AUTHHEAD(self):
+        self.send_response(401)
+        self.send_header('WWW-Authenticate', 'Basic realm=\"Test\"')
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+
 
     def do_GET(self):
-        break_path = re.findall('\/?(\w+)\/?',self.path)
-        if len(break_path) ==1 :
-            if break_path[0] == 'products':
-                data = json.dumps(LocalData.products)
-                self.send_ok_response()
-                self.wfile.write(bytes(data,'utf8'))
-                return
-        elif len(break_path) == 2:
-            if break_path[1] in LocalData.products.keys():
-                data = json.dumps(LocalData.products[break_path[1]])
-                self.send_ok_response()
-                self.wfile.write(bytes(data,'utf8'))
-                return
+        if self.headers['Authorization'] and self.headers['username']:
+            if self.headers['Authorization'] == 'Basic '+LocalData.users[self.headers['username']]:
+                break_path = re.findall('\/?(\w+)\/?',self.path)
+                if len(break_path) ==1 :
+                    if break_path[0] == 'products':
+                        data = json.dumps(LocalData.products)
+                        self.send_200_response()
+                        self.wfile.write(bytes(data,'utf8'))
+                    else:
+                        self.send_404_response()
+                        self.wfile.write(bytes(json.dumps(status_404),'utf8'))
+                elif len(break_path) == 2:
+                    if break_path[1] in LocalData.products.keys():
+                        data = json.dumps(LocalData.products[break_path[1]])
+                        self.send_200_response()
+                        self.wfile.write(bytes(data,'utf8'))
+                    else:
+                        self.send_404_response()
+                        self.wfile.write(bytes(json.dumps(status_404),'utf8'))
             else:
-                self.send_response(404)
-                self.end_headers()
-                return
-        # if self.path == '/favicon.io':
-        #     data = json.dumps(LocalData.products[0])
-        #     self.send_ok_response()
-        #     self.wfile.write(bytes(data,'utf8'))
+                self.send_200_response()
+                self.wfile.write(bytes(json.dumps({'status':'401','msg':'Unauthorised request'}),'utf-8'))
+        else:
+            self.do_AUTHHEAD()
+            self.wfile.write(bytes(json.dumps({'status': '200','msg':'Username or Password header is missing'}),'utf-8'))
         return
 
     def do_POST(self):
+        break_path = re.findall('\/?(\w+)\/?',self.path)
         if self.path == '/products':
             if self.headers.get('Content-Type') == 'application/json':
                 length = int(self.headers['Content-Length'])
                 data = json.loads(self.rfile.read(length))
                 recordID = data['id']
                 LocalData.products[recordID] = data
-                self.send_ok_response()
+                self.send_200_response()
                 self.wfile.write(bytes(json.dumps({'record_added': data}),'utf8'))
-                return
             else:
                 self.send_response(415)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
+                self.wfile.write(bytes(json.dumps({'status':'415','msg':'Media type not supported'}),'utf8'))
+        elif self.path == '/users':
+            if self.headers['username'] and self.headers['password'] :
+                key = base64.b64encode(self.headers['password'].encode()).decode()
+                LocalData.users[self.headers['username']] = key
+                self.send_200_response()
+                self.wfile.write(bytes(json.dumps({'status': '200','msg':'user added','key':key}),'utf8'))
+            else:
+                self.send_200_response()
+                self.wfile.write(bytes(json.dumps({'status': '200','msg':'Username or Password header is missing'}),'utf8'))
         else:
-            self.send_response(403)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
+            self.send_404_response()
+            self.wfile.write(bytes(json.dumps(status_404),'utf8'))
         return
-
-
 
     def do_PUT(self):
         break_path = re.findall('\/?(\w+)\/?',self.path)
@@ -78,16 +117,21 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
                     length = int(self.headers['Content-Length'])
                     data = json.loads(self.rfile.read(length))
                     LocalData.products[break_path[1]] = data
-                    self.send_ok_response()
+                    self.send_200_response()
                     self.wfile.write(bytes(json.dumps({'record_replaced': data}),'utf8'))
                 else:
                     self.send_response(415)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
+                    self.wfile.write(bytes(json.dumps({'status':'415','msg':'Media type not supported'}),'utf8'))
+            else:
+                self.send_404_response()
+                self.wfile.write(bytes(json.dumps(status_404),'utf8'))
         else:
             self.send_response(403)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
+            self.wfile.write(bytes(json.dumps({'status':'415','msg':'HTTP method not supported'}),'utf8'))
         return
 
     def do_DELETE(self):
@@ -96,18 +140,17 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
             if break_path[0] == 'products':
                 if break_path[1] in LocalData.products.keys():
                     del LocalData.products[break_path[1]]
-                    self.send_ok_response()
-                    self.wfile.write(bytes('record_deleted','utf8'))
+                    self.send_200_response()
+                    self.wfile.write(bytes(json.dumps({'status':'200','msg':'record_deleted'}),'utf8'))
                 else:
-                    self.send_response(415)
+                    self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
+                    self.wfile.write(bytes(json.dumps({'status':'200','msg':'product does not exist'}),'utf8'))
         else:
-            self.send_response(403)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
+            self.send_404_response()
+            self.wfile.write(bytes(json.dumps(status_404),'utf8'))
         return
-
 
 def run():
   print('starting server...')
