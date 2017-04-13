@@ -31,9 +31,18 @@ status_404 = {
 # HTTPRequestHandler class
 class HTTP_RequestHandler(BaseHTTPRequestHandler):
 
-    # def authenticate(func):
-    #     def authenticate_wrapper(self):
-    #         if self
+    def authenticate(func):
+        def authenticate_wrapper(self):
+            if self.headers['Authorization'] and self.headers['username']:
+                if self.headers['Authorization'] == 'Basic '+LocalData.users[self.headers['username']]:
+                    return func(self)
+                else:
+                    self.send_200_response()
+                    self.wfile.write(bytes(json.dumps({'status':'401','msg':'Unauthorised request'}),'utf-8'))
+            else:
+                self.do_AUTHHEAD()
+                self.wfile.write(bytes(json.dumps({'status': '200','msg':'Username or Password header is missing'}),'utf-8'))
+        return authenticate_wrapper
 
     def send_200_response(self):
         self.send_response(200)
@@ -51,35 +60,28 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'application/json')
         self.end_headers()
 
-
+    @authenticate
     def do_GET(self):
-        if self.headers['Authorization'] and self.headers['username']:
-            if self.headers['Authorization'] == 'Basic '+LocalData.users[self.headers['username']]:
-                break_path = re.findall('\/?(\w+)\/?',self.path)
-                if len(break_path) ==1 :
-                    if break_path[0] == 'products':
-                        data = json.dumps(LocalData.products)
-                        self.send_200_response()
-                        self.wfile.write(bytes(data,'utf8'))
-                    else:
-                        self.send_404_response()
-                        self.wfile.write(bytes(json.dumps(status_404),'utf8'))
-                elif len(break_path) == 2:
-                    if break_path[1] in LocalData.products.keys():
-                        data = json.dumps(LocalData.products[break_path[1]])
-                        self.send_200_response()
-                        self.wfile.write(bytes(data,'utf8'))
-                    else:
-                        self.send_404_response()
-                        self.wfile.write(bytes(json.dumps(status_404),'utf8'))
-            else:
+        break_path = re.findall('\/?(\w+)\/?',self.path)
+        if len(break_path) ==1 :
+            if break_path[0] == 'products':
+                data = json.dumps(LocalData.products)
                 self.send_200_response()
-                self.wfile.write(bytes(json.dumps({'status':'401','msg':'Unauthorised request'}),'utf-8'))
-        else:
-            self.do_AUTHHEAD()
-            self.wfile.write(bytes(json.dumps({'status': '200','msg':'Username or Password header is missing'}),'utf-8'))
+                self.wfile.write(bytes(data,'utf8'))
+            else:
+                self.send_404_response()
+                self.wfile.write(bytes(json.dumps(status_404),'utf8'))
+        elif len(break_path) == 2:
+            if break_path[1] in LocalData.products.keys():
+                data = json.dumps(LocalData.products[break_path[1]])
+                self.send_200_response()
+                self.wfile.write(bytes(data,'utf8'))
+            else:
+                self.send_404_response()
+                self.wfile.write(bytes(json.dumps(status_404),'utf8'))
         return
 
+    @authenticate
     def do_POST(self):
         break_path = re.findall('\/?(\w+)\/?',self.path)
         if self.path == '/products':
@@ -109,6 +111,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(bytes(json.dumps(status_404),'utf8'))
         return
 
+    @authenticate
     def do_PUT(self):
         break_path = re.findall('\/?(\w+)\/?',self.path)
         if len(break_path) == 2 :
@@ -134,6 +137,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(bytes(json.dumps({'status':'415','msg':'HTTP method not supported'}),'utf8'))
         return
 
+    @authenticate
     def do_DELETE(self):
         break_path = re.findall('\/?(\w+)\/?',self.path)
         if len(break_path) == 2 :
