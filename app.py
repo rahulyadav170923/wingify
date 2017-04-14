@@ -162,7 +162,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
 def run():
   print('starting server...')
   if 'PORT' in os.environ.keys() :
-    port = os.environ['PORT']
+    port = int(s.environ['PORT'])
   else:
     port = 8000
   server_address = ('0.0.0.0', port )
