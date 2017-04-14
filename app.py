@@ -24,10 +24,6 @@ status_404 = {
 }
 
 
-
-
-
-
 # HTTPRequestHandler class
 class HTTP_RequestHandler(BaseHTTPRequestHandler):
 
@@ -44,15 +40,27 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(bytes(json.dumps({'status': '200','msg':'Username or Password header is missing'}),'utf-8'))
         return authenticate_wrapper
 
+    def data_fields(func):
+        def data_fields_wrapper(self):
+            if self.headers['Content-Type'] == 'application/json' :
+                length = int(self.headers['Content-Length'])
+                data = json.loads(self.rfile.read(length))
+                if 'id' in data.keys():
+                    return func(self,data)
+                else:
+                    self.send_200_response()
+                    self.wfile.write(bytes(json.dumps({'status':'422','msg':'Unprocessable Entity . Does not contain the minamal id field'}),'utf-8'))
+            else:
+                self.send_200_response()
+                self.wfile.write(bytes(json.dumps({'status': '415','msg':' Media type is not supported'}),'utf-8'))
+        return data_fields_wrapper
+
+
     def send_200_response(self):
         self.send_response(200)
         self.send_header('Content-type','application/json')
         self.end_headers()
 
-    def send_404_response(self):
-        self.send_response(404)
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
 
     def do_AUTHHEAD(self):
         self.send_response(401)
@@ -69,34 +77,29 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
                 self.send_200_response()
                 self.wfile.write(bytes(data,'utf8'))
             else:
-                self.send_404_response()
-                self.wfile.write(bytes(json.dumps(status_404),'utf8'))
+                self.send_200_response()
+                self.wfile.write(bytes(json.dumps({'status':'404','msg':'Resource Not found'}),'utf8'))
         elif len(break_path) == 2:
             if break_path[1] in LocalData.products.keys():
                 data = json.dumps(LocalData.products[break_path[1]])
                 self.send_200_response()
                 self.wfile.write(bytes(data,'utf8'))
             else:
-                self.send_404_response()
-                self.wfile.write(bytes(json.dumps(status_404),'utf8'))
+                self.send_200_response()
+                self.wfile.write(bytes(json.dumps({'status':'404','msg':'Resource Not found'}),'utf8'))
         return
 
     @authenticate
-    def do_POST(self):
+    @data_fields
+    def do_POST(self,data):
         break_path = re.findall('\/?(\w+)\/?',self.path)
-        if self.path == '/products':
-            if self.headers.get('Content-Type') == 'application/json':
-                length = int(self.headers['Content-Length'])
-                data = json.loads(self.rfile.read(length))
-                recordID = data['id']
-                LocalData.products[recordID] = data
-                self.send_200_response()
-                self.wfile.write(bytes(json.dumps({'record_added': data}),'utf8'))
-            else:
-                self.send_response(415)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(bytes(json.dumps({'status':'415','msg':'Media type not supported'}),'utf8'))
+        if break_path[0] == 'products':
+            length = int(self.headers['Content-Length'])
+            # data = json.loads(self.rfile.read(length))
+            recordID = data['id']
+            LocalData.products[recordID] = data
+            self.send_200_response()
+            self.wfile.write(bytes(json.dumps({'record_added': data}),'utf8'))
         elif self.path == '/users':
             if self.headers['username'] and self.headers['password'] :
                 key = base64.b64encode(self.headers['password'].encode()).decode()
@@ -107,8 +110,8 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
                 self.send_200_response()
                 self.wfile.write(bytes(json.dumps({'status': '200','msg':'Username or Password header is missing'}),'utf8'))
         else:
-            self.send_404_response()
-            self.wfile.write(bytes(json.dumps(status_404),'utf8'))
+            self.send_200_response()
+            self.wfile.write(bytes(json.dumps({'status':'404','msg':'Resource Not found'}),'utf8'))
         return
 
     @authenticate
@@ -121,15 +124,15 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
                     data = json.loads(self.rfile.read(length))
                     LocalData.products[break_path[1]] = data
                     self.send_200_response()
-                    self.wfile.write(bytes(json.dumps({'record_replaced': data}),'utf8'))
+                    self.wfile.write(bytes(json.dumps({'status':'200','msg':'record replaced','record': data}),'utf8'))
                 else:
                     self.send_response(415)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
                     self.wfile.write(bytes(json.dumps({'status':'415','msg':'Media type not supported'}),'utf8'))
             else:
-                self.send_404_response()
-                self.wfile.write(bytes(json.dumps(status_404),'utf8'))
+                self.send_200_response()
+                self.wfile.write(bytes(json.dumps({'status':'404','msg':'Resource Not found'}),'utf8'))
         else:
             self.send_response(403)
             self.send_header('Content-Type', 'application/json')
@@ -152,8 +155,8 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(bytes(json.dumps({'status':'200','msg':'product does not exist'}),'utf8'))
         else:
-            self.send_404_response()
-            self.wfile.write(bytes(json.dumps(status_404),'utf8'))
+            self.send_200_response()
+            self.wfile.write(bytes(json.dumps({'status':'404','msg':'Resource Not found'}),'utf8'))
         return
 
 def run():

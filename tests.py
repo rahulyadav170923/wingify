@@ -1,31 +1,32 @@
 import unittest, os
-from multiprocessing import
+import requests
+from app import LocalData
 
-read_case = {
-
-}
-
+headers={'Content-Type':'application/json','Authorization':'Basic cGFzc3dvcmQ=','username':'admin'}
 
 class TestStringMethods(unittest.TestCase):
 
-    def test_create(self):
-        self.assertEqual('foo'.upper(), 'FOO')
+    def test_get(self):
+        data = requests.get('http://0.0.0.0:8000/products',headers=headers)
+        self.assertEqual(data.json(), LocalData.products)
+
+    def test_post(self):
+        requests.post('http://0.0.0.0:8000/products',headers=headers,json={'id':'product2'})
+        data_get = requests.get('http://0.0.0.0:8000/products/product2',headers=headers)
+        self.assertTrue(data_get.json(),{'id':'product2'})
+
+    def test_put(self):
+        requests.post('http://0.0.0.0:8000/products/product2',headers=headers,json={'id':'product2','cost':'20'})
+        data_get = requests.get('http://0.0.0.0:8000/products/product2',headers=headers)
+        self.assertTrue(data_get.json(),{'id':'product2','cost':'20'})
 
     def test_delete(self):
-        self.assertTrue('FOO'.isupper())
-        self.assertFalse('Foo'.isupper())
+        requests.delete('http://0.0.0.0:8000/products/product2',headers=headers)
+        data_get = requests.get('http://0.0.0.0:8000/products/product2',headers=headers)
+        self.assertTrue(data_get.json(),{"status": "200","msg": "record_deleted"})
 
-    def test_update(self):
-        s = 'hello world'
-        self.assertEqual(s.split(), ['hello', 'world'])
-        # check that s.split fails when the separator is not a string
-        with self.assertRaises(TypeError):
-            s.split(2)
-    def test_read(self):
-        pass
-
-    def test_search(self):
-        pass
+    # def test_search(self):
+    #     pass
 
 if __name__ == '__main__':
     unittest.main()
