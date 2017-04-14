@@ -1,8 +1,6 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
-import json,re,urllib,simplejson
-import cgi
-import pdb
+import json,re
 import base64
 
 class LocalData(object):
@@ -26,9 +24,15 @@ status_404 = {
 
 # HTTPRequestHandler class
 class HTTP_RequestHandler(BaseHTTPRequestHandler):
-
+    """
+    Class to handle all the incoming requests.
+    """
     def authenticate(func):
+        """ decorator used for Basis authentication for each request """
         def authenticate_wrapper(self):
+            break_path = re.findall('\/?(\w+)\/?',self.path)
+            if break_path[0] == 'users':
+                return func(self)
             if self.headers['Authorization'] and self.headers['username']:
                 if self.headers['Authorization'] == 'Basic '+LocalData.users[self.headers['username']]:
                     return func(self)
@@ -40,8 +44,13 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(bytes(json.dumps({'status': '200','msg':'Username or Password header is missing'}),'utf-8'))
         return authenticate_wrapper
 
+
     def data_fields(func):
+        """ decotator to check content type and if the key attribute is present which is mandatory """
         def data_fields_wrapper(self):
+            break_path = re.findall('\/?(\w+)\/?',self.path)
+            if break_path[0] == 'users':
+                return func(self,None)
             if self.headers['Content-Type'] == 'application/json' :
                 length = int(self.headers['Content-Length'])
                 data = json.loads(self.rfile.read(length))
@@ -70,6 +79,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
 
     @authenticate
     def do_GET(self):
+        """ To get info about all the products from /products and for specific products wiith productid /products/<productid> """
         break_path = re.findall('\/?(\w+)\/?',self.path)
         if len(break_path) ==1 :
             if break_path[0] == 'products':
@@ -92,6 +102,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
     @authenticate
     @data_fields
     def do_POST(self,data):
+        """ To add new products/users using /products and /users"""
         break_path = re.findall('\/?(\w+)\/?',self.path)
         if break_path[0] == 'products':
             length = int(self.headers['Content-Length'])
@@ -100,7 +111,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
             LocalData.products[recordID] = data
             self.send_200_response()
             self.wfile.write(bytes(json.dumps({'record_added': data}),'utf8'))
-        elif self.path == '/users':
+        elif break_path[0] == 'users':
             if self.headers['username'] and self.headers['password'] :
                 key = base64.b64encode(self.headers['password'].encode()).decode()
                 LocalData.users[self.headers['username']] = key
@@ -116,6 +127,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
 
     @authenticate
     def do_PUT(self):
+        """ To update product details od product with productid /products/<productid> """
         break_path = re.findall('\/?(\w+)\/?',self.path)
         if len(break_path) == 2 :
             if break_path[0] == 'products':
@@ -142,6 +154,7 @@ class HTTP_RequestHandler(BaseHTTPRequestHandler):
 
     @authenticate
     def do_DELETE(self):
+        """ To delete products using /products/<productid> """
         break_path = re.findall('\/?(\w+)\/?',self.path)
         if len(break_path) == 2 :
             if break_path[0] == 'products':

@@ -1,0 +1,28 @@
+Urls :
+1) /products - to get and post products
+2) /products/<product_id> - to get and put (update), delete specific products
+3/users- Post here to create users [ username and passwor header necessary ]
+
+Authorisation is done using username and Authorisation Header like the one written in the unittests.
+
+Details : (Basic Authentication is necessary at every endpoint except at creating users.)
+1) Get - /products (gives list of all products)  /products/<productid> (gives list of all products with productid)
+2)Post- to add a given product
+3) Put-  to update a given product
+            a) content-type must be 'applicatio/json'
+            b) 'id' field is manndatory
+4)Delete- /products/productid to delete a goven product
+
+
+
+Some Decions made :
+1) Instead of sending error codes in the Http request i have sent 200 for each one and added msg nad sttus code in the json. Twitter does some of its apis endpoints this way. This is merely a personal choice.
+2) I haven added a database to keep the code same in both production and localhost
+3) There is no structure to product details apart fro mit needs a given 'id'(manadatory). I generally use sqlalchemy for such tasks.
+
+To run in local machine:
+ 1) "python setup.py"
+ 2) "python app.py"
+
+ To run tests :
+ Run local server and run tests in another terminal (remember to use "source venv/bin/activate" to activate virtualenv)

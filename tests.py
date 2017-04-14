@@ -1,6 +1,8 @@
 import unittest, os
 import requests
 from app import LocalData
+from multiprocessing import Process
+from app import run
 
 headers={'Content-Type':'application/json','Authorization':'Basic cGFzc3dvcmQ=','username':'admin'}
 
@@ -29,4 +31,9 @@ class TestStringMethods(unittest.TestCase):
     #     pass
 
 if __name__ == '__main__':
-    unittest.main()
+    p1 = Process(target = run)
+    p1.start()
+    p2 = Process(target = unittest.main)
+    p2.start()
+    p2.join(timeout=1)
+    p1.terminate()
