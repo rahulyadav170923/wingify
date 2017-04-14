@@ -20,9 +20,9 @@ Some Decions made :
 2) I haven added a database to keep the code same in both production and localhost
 3) There is no structure to product details apart fro mit needs a given 'id'(manadatory). I generally use sqlalchemy for such tasks.
 
-To run in local machine:
- 1) "python setup.py"
- 2) "python app.py"
+Setup : no need just run the script as mentioned below
 
  To run tests :
- Run local server and run tests in another terminal (remember to use "source venv/bin/activate" to activate virtualenv)
+ bash run.sh tests
+ for server:
+ bash run.sh server
